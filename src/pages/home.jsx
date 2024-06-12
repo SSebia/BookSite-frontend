@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rating, AppBar, Paper, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem, TextField, Select, MenuItem as DropdownItem, Card, CardContent, Grid, FormControl, InputLabel, Modal, Button } from '@mui/material';
+import { Rating, AppBar, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem, TextField, Select, MenuItem as DropdownItem, Card, CardContent, Grid, FormControl, InputLabel } from '@mui/material';
 import { useAuth } from "src/services/AuthContext";
 import { getBooks, getCategories } from 'src/services/BookService';
 import CardHeader from '@mui/material/CardHeader';
@@ -9,6 +9,10 @@ import { useSnackbar } from 'notistack';
 import { BookDetailsModal } from 'src/components/BookDetailsModal';
 import apiClient from 'src/utils/apiClient';
 import { getToken } from 'src/services/userService';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditIcon from '@mui/icons-material/Edit';
+import { AddBookModal } from 'src/components/AddBookModal';
+import { EditCategoriesModal } from 'src/components/EditCategoriesModal';
 
 const Home = () => {
   const { user, logoutUser } = useAuth();
@@ -20,7 +24,10 @@ const Home = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedBook, setSelectedBook] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [addBookModalOpen, setAddBookModalOpen] = useState(false);
+  const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
   const open = Boolean(anchorEl);
+  const isAdmin = user.rol.includes("Admin");
 
   const showSnackbar = (message, options = {}) => {
       enqueueSnackbar(message, {
@@ -67,6 +74,14 @@ const Home = () => {
   const viewBook = (book) => {
     setSelectedBook(book);
     setModalOpen(true);
+  };
+
+  const addBook = () => {
+    setAddBookModalOpen(true);
+  };
+
+  const editCategory = () => {
+    setEditCategoryModalOpen(true);
   };
 
 
@@ -245,6 +260,23 @@ const Home = () => {
             </Select>
           </FormControl>
         </Box>
+        {isAdmin && (
+          <Box sx={{ marginBottom: '20px', display: 'flex', flexDirection: 'row' }}>
+            <IconButton color="inherit" aria-label="add new book" onClick={addBook}>
+              <AddCircleOutlineIcon />
+            </IconButton>
+            <Typography sx={{ paddingLeft: '5px'}}>
+              (Add a new book)
+            </Typography>
+
+            <IconButton color="inherit" aria-label="edit categories" onClick={editCategory} sx={{marginLeft: '30px'}}>
+              <EditIcon />
+            </IconButton>
+            <Typography sx={{ paddingLeft: '5px'}}>
+              (Edit categories)
+            </Typography>
+          </Box>
+        )}
         <Grid container spacing={2}>
           {filteredBooks.map(book => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
@@ -274,7 +306,7 @@ const Home = () => {
                     {!book.base64 ? (
                       <img src="https://www.pngkey.com/png/full/26-261029_book-png-jpg-royalty-free-library-thick-book.png" alt={book.title} style={{ width: '100px', height: 'auto' }} />
                     ) : (
-                      <img src={`data:image/jpeg;base64,${book.base64}`} alt={book.title} style={{ width: '100px', height: 'auto' }} />
+                      <img src={`data:image/${book.base64}`} alt={book.title} style={{ width: '100px', height: 'auto', maxHeight: '250px' }} />
                     )}
                   </Box>
                   <Box>
@@ -289,6 +321,8 @@ const Home = () => {
           ))}
         </Grid>
         {selectedBook && <BookDetailsModal selectedBook={selectedBook} getRatingById={getRatingById} updateBookRating={updateBookRating} modalOpen={modalOpen} setModalOpen={setModalOpen} user={user} showSnackbar={showSnackbar} />}
+        {addBookModalOpen && <AddBookModal addBookModalOpen={addBookModalOpen} setAddBookModalOpen={setAddBookModalOpen} showSnackbar={showSnackbar} books={books} setBooks={setBooks} />}
+        {editCategoryModalOpen && <EditCategoriesModal editCategoryModalOpen={editCategoryModalOpen} setEditCategoryModalOpen={setEditCategoryModalOpen} showSnackbar={showSnackbar} categories={categories} setCategories={setCategories} />}
       </Box>
     </Box>
   );
