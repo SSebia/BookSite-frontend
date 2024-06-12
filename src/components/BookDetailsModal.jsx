@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Rating, Paper, IconButton, Typography, Box, Button, TextField, Modal, List, Divider } from '@mui/material';
+import { Rating, Paper, IconButton, Typography, Box, TextField, Modal, List, Divider } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import { Comment } from 'src/components/Comment';
 import { getComments } from 'src/services/BookService';

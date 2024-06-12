@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Rating, Paper, FormControl, IconButton, MenuItem, InputLabel, Select, Typography, Box, Button, TextField, Modal, List, Divider } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
-import { Comment } from 'src/components/Comment';
-import { getComments } from 'src/services/BookService';
+import { FormControl, MenuItem, InputLabel, Select, Typography, Box, Button, TextField, Modal, List } from '@mui/material';
 import apiClient from 'src/utils/apiClient';
 import { getToken } from 'src/services/userService';
 import { getCategories } from 'src/services/BookService';
@@ -52,10 +49,6 @@ export const AddBookModal = ({ addBookModalOpen, setAddBookModalOpen, showSnackb
 
         if (!bookData.title || !bookData.description || !bookData.isbn || !bookData.pages || !bookData.catID) {
             showSnackbar('Please fill out all fields!', { variant: 'error' });
-            return;
-        }
-        if (!bookData.base64) {
-            showSnackbar('Please upload an image!', { variant: 'error' });
             return;
         }
         if (bookData.title.length < 3 || bookData.description.length < 3 || bookData.isbn.length < 3) {

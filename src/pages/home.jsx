@@ -13,9 +13,12 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { AddBookModal } from 'src/components/AddBookModal';
 import { EditCategoriesModal } from 'src/components/EditCategoriesModal';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { EditBookModal } from 'src/components/EditBookModal';
 
 const Home = () => {
   const { user, logoutUser } = useAuth();
+  if (!user) return null;
   const { enqueueSnackbar } = useSnackbar();
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -26,8 +29,10 @@ const Home = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [addBookModalOpen, setAddBookModalOpen] = useState(false);
   const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
+  const [editBookModalOpen, setEditBookModalOpen] = useState(false);
+  const [selectedBookEdit, setSelectedBookEdit] = useState(null);
   const open = Boolean(anchorEl);
-  const isAdmin = user.rol.includes("Admin");
+  const isAdmin = (user != null ? user.rol.includes("Admin") : false);
 
   const showSnackbar = (message, options = {}) => {
       enqueueSnackbar(message, {
@@ -74,6 +79,32 @@ const Home = () => {
   const viewBook = (book) => {
     setSelectedBook(book);
     setModalOpen(true);
+  };
+
+  const editBook = (book) => {
+    setSelectedBookEdit(book);
+    setEditBookModalOpen(true);
+  };
+
+  const deleteBook = async (book) => {
+    try {
+      const response = await apiClient.delete(`books/delete/${book.id}`, {
+          headers: {
+              'Authorization': `Bearer ${getToken()}`
+          }
+      });
+      if (response.status == 204) {
+          showSnackbar('Book deleted!');
+          const updatedBooks = books.filter(b => b.id !== book.id);
+          setBooks(updatedBooks);
+      }
+      else {
+          showSnackbar('Server error', { variant: 'error' });
+      }
+    } catch (error) {
+        showSnackbar('Failed to delete book!', { variant: 'error' });
+        console.log(error)
+    }
   };
 
   const addBook = () => {
@@ -290,6 +321,16 @@ const Home = () => {
                       <IconButton aria-label="view-book" onClick={() => viewBook(book)}>
                         <VisibilityIcon />
                       </IconButton>
+                      {isAdmin && (
+                        <>
+                          <IconButton aria-label="EDIT-book" onClick={() => editBook(book)}>
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton aria-label="delete-book" onClick={() => deleteBook(book)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </>
+                      )}
                     </>
                   }
                   title={book.title}
@@ -313,7 +354,6 @@ const Home = () => {
                     <Typography variant="body2">
                       {book.description}
                     </Typography>
-        
                   </Box>
                 </CardContent>
               </Card>
@@ -322,7 +362,8 @@ const Home = () => {
         </Grid>
         {selectedBook && <BookDetailsModal selectedBook={selectedBook} getRatingById={getRatingById} updateBookRating={updateBookRating} modalOpen={modalOpen} setModalOpen={setModalOpen} user={user} showSnackbar={showSnackbar} />}
         {addBookModalOpen && <AddBookModal addBookModalOpen={addBookModalOpen} setAddBookModalOpen={setAddBookModalOpen} showSnackbar={showSnackbar} books={books} setBooks={setBooks} />}
-        {editCategoryModalOpen && <EditCategoriesModal editCategoryModalOpen={editCategoryModalOpen} setEditCategoryModalOpen={setEditCategoryModalOpen} showSnackbar={showSnackbar} categories={categories} setCategories={setCategories} />}
+        {editCategoryModalOpen && <EditCategoriesModal editCategoryModalOpen={editCategoryModalOpen} setEditCategoryModalOpen={setEditCategoryModalOpen} showSnackbar={showSnackbar} categories={categories} setCategories={setCategories} books={books} setBooks={setBooks} />}
+        {selectedBookEdit && <EditBookModal selectedBookEdit={selectedBookEdit} editBookModalOpen={editBookModalOpen} setEditBookModalOpen={setEditBookModalOpen} showSnackbar={showSnackbar} categories={categories} setCategories={setCategories} books={books} setBooks={setBooks} />}
       </Box>
     </Box>
   );
