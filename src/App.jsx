@@ -18,7 +18,7 @@ const darkTheme = createTheme({
 const Layout = () => ( 
   <ThemeProvider theme={darkTheme}>
     <CssBaseline />
-    <SnackbarProvider maxSnack={3}>
+    <SnackbarProvider maxSnack={3} autoHideDuration={2000}>
       <Outlet /> 
     </SnackbarProvider>
   </ThemeProvider>

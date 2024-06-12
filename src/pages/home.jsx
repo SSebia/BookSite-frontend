@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Rating, AppBar, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem, TextField, Select, MenuItem as DropdownItem, Card, CardContent, Grid, FormControl, InputLabel, Modal, Button } from '@mui/material';
+import { Rating, AppBar, Paper, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem, TextField, Select, MenuItem as DropdownItem, Card, CardContent, Grid, FormControl, InputLabel, Modal, Button } from '@mui/material';
 import { useAuth } from "src/services/AuthContext";
 import { getBooks, getCategories } from 'src/services/BookService';
 import CardHeader from '@mui/material/CardHeader';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import { useSnackbar } from 'notistack';
+import { BookDetailsModal } from 'src/components/BookDetailsModal';
+import apiClient from 'src/utils/apiClient';
+import { getToken } from 'src/services/userService';
 
 const Home = () => {
   const { user, logoutUser } = useAuth();
+  const { enqueueSnackbar } = useSnackbar();
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +21,14 @@ const Home = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const open = Boolean(anchorEl);
+
+  const showSnackbar = (message, options = {}) => {
+      enqueueSnackbar(message, {
+          variant: 'success',
+          anchorOrigin: { horizontal: 'center', vertical: 'top' },
+          ...options,
+      });
+  };
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -56,13 +69,72 @@ const Home = () => {
     setModalOpen(true);
   };
 
-  const handleModalClose = () => {
-    setModalOpen(false);
+
+  const addBookToFavorites = async (bookId) => {
+    const hasFavorited = hasUserFavorited(books.find(book => book.id === bookId));
+
+    if (!hasFavorited) {
+      try {
+        const response = await apiClient.post(`books/favorite/${bookId}`, {}, {
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+        if (response.status == 200) {
+          showSnackbar(`Added to Favorites`);
+        }
+        else {
+          showSnackbar('Server error', { variant: 'error' });
+          return;
+        }
+      } catch (error) {
+        showSnackbar('Failed to add book to favorites!', { variant: 'error' });
+        console.log(error)
+        return;
+      }
+    }
+    else {
+      try {
+        const response = await apiClient.delete(`books/favorite/${bookId}`, {
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+        if (response.status == 200) {
+          showSnackbar(`Removed from Favorites`, { variant: 'error' });
+        }
+        else {
+          showSnackbar('Server error', { variant: 'error' });
+          return;
+        }
+      } catch (error) {
+        showSnackbar('Failed to remove book from favorites!', { variant: 'error' });
+        console.log(error)
+        return;
+      }
+    }
+
+    const updatedBooks = books.map(book => {
+      if (book.id === bookId) {
+        const updatedFavoritedByUsers = book.favoritedByUsers.find(fav => fav.userid === user.id)
+          ? book.favoritedByUsers.filter(fav => fav.userid !== user.id)
+          : [...book.favoritedByUsers, { userid: user.id }];
+        return { ...book, favoritedByUsers: updatedFavoritedByUsers };
+      }
+      return book;
+    });
+
+    setBooks(updatedBooks);
+
+    if (selectedBook && selectedBook.id === bookId) {
+      setSelectedBook(updatedBooks.find(book => book.id === bookId));
+    }
   };
 
-  const addBookToFavorites = (bookId) => {
-    console.log('Add to favorites:', bookId);
+  const hasUserFavorited = (book) => {
+    return book.favoritedByUsers.some(fav => fav.userid === user.id);
   };
+
 
   const calculateAverageRating = (ratings) => {
     if (!ratings || ratings.length === 0) {
@@ -70,34 +142,61 @@ const Home = () => {
     }
     const sum = ratings.reduce((acc, rating) => acc + rating.rating, 0);
     return sum / ratings.length;
-  };
+  }
+
+  const getRatingById = (book) => {
+    const rating = book.bookRatings.find((rating) => rating.userid === user.id);
+    return rating ? rating.rating : 0;
+  }
+
+  const updateBookRating = async (e, value, book) => {
+
+    try {
+      const response = await apiClient.post(`books/rate/${book.id}?rating=${value == null ? 0 : value}`, {}, {
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        }
+      });
+      if (response.status == 200) {
+        if (value == null) {
+          showSnackbar(`Removed rating for "${book.title}"`, { variant: 'error' });
+        }
+        else {
+          showSnackbar(`Rated "${book.title}" ${value} stars!`);
+        }
+      }
+      else {
+        showSnackbar('Server error', { variant: 'error' });
+        return;
+      }
+    } catch (error) {
+      showSnackbar('Failed to rate the book!', { variant: 'error' });
+      console.log(error)
+      return;
+    }
+
+    const updatedBook = { ...book };
+    const existingRating = updatedBook.bookRatings.find(rating => rating.userid === user.id);
+
+    if (existingRating) {
+      if (value === null) {
+        updatedBook.bookRatings = updatedBook.bookRatings.filter(rating => rating.userid !== user.id);
+      }
+      else {
+        existingRating.rating = value;
+      }
+    } else {
+      updatedBook.bookRatings.push({ userid: user.id, rating: value });
+    }
+
+    setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? updatedBook : b));
+    setSelectedBook(updatedBook);
+  }
 
   const filteredBooks = books.filter(book => {
     return book.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
            (selectedCategory ? book.category.name === selectedCategory : true);
   });
-
-
-  const BookDetailsModal = () => (
-    //<Rating name="read-only" value={1} readOnly sx={{paddingBottom: '30px'}} />
-    <Modal
-      open={modalOpen}
-      onClose={handleModalClose}
-      aria-labelledby="book-details-modal"
-      aria-describedby="book-details-modal-description"
-    >
-      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 300, bgcolor: 'background.paper', boxShadow: 24, p: 2 }}>
-        <Typography id="modal-modal-title" variant="h6" component="h2">
-          {selectedBook?.title}
-        </Typography>
-        <Typography id="modal-modal-description">
-          {selectedBook?.description}
-        </Typography>
-        {/* TODO Komentarai */}
-        <Button onClick={() => addBookToFavorites(selectedBook?.id)}>Add to Favorites</Button>
-      </Box>
-    </Modal>
-  );
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -119,7 +218,6 @@ const Home = () => {
             open={open}
             onClose={handleClose}
           >
-            <MenuItem onClick={handleClose}>Favorite Books</MenuItem>
             <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
         </Toolbar>
@@ -153,9 +251,14 @@ const Home = () => {
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardHeader
                   action={
-                    <IconButton aria-label="settings" onClick={() => viewBook(book)}>
-                      <VisibilityIcon />
-                    </IconButton>
+                    <>
+                      <IconButton aria-label="add-favorites" onClick={() => addBookToFavorites(book.id)}>
+                        <FavoriteIcon style={{ color: hasUserFavorited(book) ? 'red' : 'gray' }} />
+                      </IconButton>
+                      <IconButton aria-label="view-book" onClick={() => viewBook(book)}>
+                        <VisibilityIcon />
+                      </IconButton>
+                    </>
                   }
                   title={book.title}
                   subheader={book.category.name}
@@ -185,7 +288,7 @@ const Home = () => {
             </Grid>
           ))}
         </Grid>
-        {selectedBook && <BookDetailsModal />}
+        {selectedBook && <BookDetailsModal selectedBook={selectedBook} getRatingById={getRatingById} updateBookRating={updateBookRating} modalOpen={modalOpen} setModalOpen={setModalOpen} user={user} showSnackbar={showSnackbar} />}
       </Box>
     </Box>
   );

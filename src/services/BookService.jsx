@@ -18,3 +18,12 @@ export const getCategories = async () => {
     });
     return response.data;
 }
+
+export const getComments = async (bookID) => {
+    const response = await apiClient.get(`books/comments/${bookID}`, {
+        headers: {
+            'Authorization': `Bearer ${getToken()}`
+        }
+    });
+    return response.data;
+}
